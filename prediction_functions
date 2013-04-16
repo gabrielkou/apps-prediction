@@ -1,0 +1,152 @@
+
+function onOpen() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var menuEntries = [{name: "Train new model (Insert)", functionName: "train"},
+                     {name: "Train new model from selection (Insert)", functionName: "train_from_selection"},
+                     {name: "Get training status (Get)", functionName: "get"},
+                     {name: "Predict Instances (Predict)", functionName: "predict"},
+                     {name: "Update existing model (Update)", functionName: "update"},
+                     {name: "Analyze training data (Analyze)", functionName: "analyze"},
+                     {name: "List existing models (List)", functionName: "list"} ];
+  sheet.addMenu("Prediction", menuEntries);                     
+}
+
+
+function train() {
+  try {
+    var model_name = Browser.inputBox("Enter model name:");
+    var data_location = Browser.inputBox("Enter data location:");
+  
+    var training_input = Prediction.newTraining();
+    training_input.setId(model_name);
+    training_input.setStorageDataLocation(data_location);
+
+    var user_reply = Browser.msgBox("Start Training:", training_input, Browser.Buttons.OK_CANCEL);
+    if (user_reply == "ok") {
+      var insert_reply = Prediction.Trainedmodels.insert(training_input);
+      Browser.msgBox("Result:", insert_reply, Browser.Buttons.OK);
+    }
+  } catch(e) {
+    Browser.msgBox("ERROR:"+e, Browser.Buttons.OK);
+  }
+}
+
+
+function train_from_selection() {
+  try {
+    var sheet = SpreadsheetApp.getActiveSheet();
+    var selection = sheet.getActiveSelection();
+    var instances = selection.getValues();
+  
+    var model_name = Browser.inputBox("Enter model name:");
+  
+    var training_instances = [];
+    for (var i = 0; i < instances.length; ++i) {
+      var output = instances[i][0];
+      var csv_instance = instances[i].slice(1);
+    
+      var training_instance = Prediction.newTrainingTrainingInstances();
+      training_instance.setOutput(output);
+      training_instance.setCsvInstance(csv_instance);
+      training_instances.push(training_instance);
+    }
+  
+    var training_input = Prediction.newTraining();
+    training_input.setId(model_name);
+    training_input.setTrainingInstances(training_instances);
+  
+    var user_reply = Browser.msgBox("Start Training:", training_input, Browser.Buttons.OK_CANCEL);
+    if (user_reply == "ok") {
+      var insert_reply = Prediction.Trainedmodels.insert(training_input);
+      Browser.msgBox("Result:", insert_reply, Browser.Buttons.OK);
+    }    
+  } catch(e) {
+    Browser.msgBox("ERROR:"+e, Browser.Buttons.OK);
+  }
+}
+
+
+function get() {
+  try {
+    var model_name = Browser.inputBox("Enter model name:");
+    var training_status = Prediction.Trainedmodels.get(model_name);
+    Browser.msgBox("Result:", training_status, Browser.Buttons.OK);    
+  } catch(e) {
+    Browser.msgBox("ERROR:"+e, Browser.Buttons.OK);
+  }
+}
+
+
+function predict() {
+  try {
+    var sheet = SpreadsheetApp.getActiveSheet();
+    var selection = sheet.getActiveSelection();
+    var instances = selection.getValues();
+  
+    var model_name = Browser.inputBox("Enter model name:");
+    for (var i = 0; i < instances.length; ++i) {
+      var result = predictSingleRow(model_name, instances[i]);
+      selection.getCell(i + 1, 1).setValue(result);
+    }
+  } catch(e) {
+    Browser.msgBox("ERROR:"+e, Browser.Buttons.OK);
+  }
+}
+
+function predictSingleRow(model_name, row) {
+  var input_instance = row.slice(1);
+  
+  var prediction_input = Prediction.Trainedmodels.newPredictInput().setCsvInstance(input_instance);
+  var prediction_out = Prediction.Trainedmodels.predict(model_name, {"input" : prediction_input});
+
+  if (prediction_out.getOutputLabel() != null) {
+    return prediction_out.getOutputLabel();
+  } else {
+    return prediction_out.getOutputValue();
+  }
+}
+
+
+function update() { 
+  try {
+    var sheet = SpreadsheetApp.getActiveSheet();
+    var selection = sheet.getActiveSelection();
+    var instances = selection.getValues();
+  
+    var model_name = Browser.inputBox("Enter model name:");
+    for (var i = 0; i < instances.length; ++i) {
+      updateSingleRow(model_name, instances[i]);
+    }
+  } catch(e) {
+    Browser.msgBox("ERROR:"+e, Browser.Buttons.OK);
+  }
+}
+
+function updateSingleRow(model_name, row) {
+  var output = row[0];
+  var csv_instance = row.slice(1);
+  
+  var update_training = Prediction.Trainedmodels.update(model_name,
+                                                       {"output" : output, "csvInstance" : csv_instance});
+}
+
+
+function analyze() { 
+  try {
+    var model_name = Browser.inputBox("Enter model name:");
+    var result = Prediction.Trainedmodels.analyze(model_name);
+    Browser.msgBox("Result:", result, Browser.Buttons.OK);
+  } catch(e) {
+    Browser.msgBox("ERROR:"+e, Browser.Buttons.OK);
+  }
+}
+
+
+function list() {
+  try {
+    var result = Prediction.Trainedmodels.list();
+    Browser.msgBox("Result:", result, Browser.Buttons.OK);
+  } catch(e) {
+    Browser.msgBox("ERROR:"+e, Browser.Buttons.OK);
+  }
+}
